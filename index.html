@@ -66,6 +66,7 @@
 
   <div class="tabs">
     <button class="tab active" onclick="switchTab('calc')">Calculadora</button>
+    <button class="tab" onclick="switchTab('art21')">Art. 21 – Escala</button>
     <button class="tab" onclick="switchTab('hist')">Historial de valores</button>
   </div>
 
@@ -102,7 +103,68 @@
     </div>
   </div>
 
-  <div id="tab-hist" class="panel">
+  <div id="tab-art21" class="panel">
+    <div class="card">
+      <p class="section-title">Valor UMA vigente</p>
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+        <span id="art21UMAValor" style="font-size:22px;font-weight:500;">—</span>
+        <span id="art21UMATag" class="vigencia-tag" style="display:none;"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Calculá el honorario por monto del proceso</p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <input class="uma-input" style="font-size:22px;width:220px;" type="number" id="art21Monto" min="0" placeholder="Monto ($)" oninput="calcArt21()" />
+        <span style="font-size:15px;color:#888;">pesos</span>
+      </div>
+      <div id="art21Result" style="display:none;margin-top:14px;">
+        <div style="background:#f5f4f0;border-radius:8px;padding:1rem 1.25rem;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="result-label">Tramo aplicable</div>
+            <div style="font-size:20px;font-weight:500;" id="art21Tramo">—</div>
+          </div>
+          <div>
+            <div class="result-label">Alícuota</div>
+            <div style="font-size:20px;font-weight:500;" id="art21Alicuota">—</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div style="background:#f5f4f0;border-radius:8px;padding:12px 14px;">
+            <div class="result-label">Honorario mínimo</div>
+            <div style="font-size:20px;font-weight:500;" id="art21Min">—</div>
+          </div>
+          <div style="background:#f5f4f0;border-radius:8px;padding:12px 14px;">
+            <div class="result-label">Honorario máximo</div>
+            <div style="font-size:20px;font-weight:500;" id="art21Max">—</div>
+          </div>
+        </div>
+        <div style="background:#f0efe9;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:#666;" id="art21AuxInfo" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Art. 21 – Ley 27.423 · Escala de honorarios</p>
+      <table class="hist-table" id="art21Table">
+        <thead>
+          <tr>
+            <th>Tramo</th>
+            <th>En UMA</th>
+            <th>En pesos (aprox.)</th>
+            <th>Alícuota</th>
+          </tr>
+        </thead>
+        <tbody id="art21Body"></tbody>
+      </table>
+      <div style="margin-top:14px;padding:10px 12px;background:#f5f4f0;border-radius:8px;font-size:12px;color:#555;line-height:1.6;">
+        <strong>Nota:</strong> En ningún caso los honorarios podrán ser inferiores al máximo del grado inmediato anterior de la escala, con más el incremento por aplicación al excedente de la alícuota del grado siguiente.<br><br>
+        Si hubiera litisconsorcio la regulación se hará con relación al interés de cada litisconsorte. En los procesos de jurisdicción voluntaria se considerará que hay una (1) sola parte.<br><br>
+        <strong>Auxiliares de la Justicia:</strong> el honorario no podrá ser inferior al 5% ni superior al 10% del monto del proceso. Ante labores altamente complejas o extensas, los jueces podrán por auto fundado aplicar un porcentaje mayor.
+      </div>
+    </div>
+  </div>
+
+
     <input class="hist-search" type="text" id="histSearch" placeholder="Buscar por período, normativa o fecha..." oninput="filtrarHist()" />
     <table class="hist-table">
       <thead><tr><th>Normativa</th><th>Fecha res.</th><th>Vigencia</th><th>Monto</th></tr></thead>
@@ -358,9 +420,80 @@ function filtrarHist() {
 }
 
 function switchTab(id) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['calc','hist'][i]===id));
+  const ids = ['calc','art21','hist'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ids[i]===id));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
+  if (id==='art21') renderArt21();
+}
+
+// Escala Art. 21 Ley 27.423 (en UMA)
+const ESCALA_ART21 = [
+  { label:'Hasta 15 UMA',          minUMA:0,   maxUMA:15,       pctMin:22, pctMax:33 },
+  { label:'De 16 a 45 UMA',        minUMA:16,  maxUMA:45,       pctMin:20, pctMax:26 },
+  { label:'De 46 a 90 UMA',        minUMA:46,  maxUMA:90,       pctMin:18, pctMax:24 },
+  { label:'De 91 a 150 UMA',       minUMA:91,  maxUMA:150,      pctMin:17, pctMax:22 },
+  { label:'De 151 a 450 UMA',      minUMA:151, maxUMA:450,      pctMin:15, pctMax:20 },
+  { label:'De 451 a 750 UMA',      minUMA:451, maxUMA:750,      pctMin:13, pctMax:17 },
+  { label:'De 751 UMA en adelante',minUMA:751, maxUMA:Infinity, pctMin:12, pctMax:15 },
+];
+
+function renderArt21() {
+  if (!umaVigente) return;
+  const u = umaVigente.monto;
+
+  // Header
+  document.getElementById('art21UMAValor').textContent = fmt(u) + ' por UMA';
+  const tag = document.getElementById('art21UMATag');
+  tag.textContent = umaVigente.periodo + ' · ' + umaVigente.norm;
+  tag.style.display = 'inline-block';
+
+  // Tabla
+  const tbody = document.getElementById('art21Body');
+  tbody.innerHTML = '';
+  ESCALA_ART21.forEach(t => {
+    const tr = document.createElement('tr');
+    const pesos = t.maxUMA === Infinity
+      ? fmt(t.minUMA * u) + ' en adelante'
+      : 'Hasta ' + fmt(t.maxUMA * u);
+    tr.innerHTML = `<td>${t.label}</td><td>${t.maxUMA===Infinity ? t.minUMA+' en adelante' : 'Hasta '+t.maxUMA+' UMA'}</td><td>${pesos}</td><td>del ${t.pctMin}% al ${t.pctMax}%</td>`;
+    tbody.appendChild(tr);
+  });
+
+  calcArt21();
+}
+
+function calcArt21() {
+  if (!umaVigente) return;
+  const montoStr = document.getElementById('art21Monto').value;
+  if (!montoStr) { document.getElementById('art21Result').style.display='none'; return; }
+  const monto = parseFloat(montoStr);
+  if (isNaN(monto) || monto <= 0) { document.getElementById('art21Result').style.display='none'; return; }
+
+  const u = umaVigente.monto;
+  const montoEnUMA = monto / u;
+
+  // Encontrar tramo
+  let tramo = ESCALA_ART21[ESCALA_ART21.length-1];
+  for (const t of ESCALA_ART21) {
+    if (montoEnUMA <= t.maxUMA) { tramo = t; break; }
+  }
+
+  const honMin = monto * (tramo.pctMin / 100);
+  const honMax = monto * (tramo.pctMax / 100);
+
+  document.getElementById('art21Tramo').textContent = tramo.label;
+  document.getElementById('art21Alicuota').textContent = 'del ' + tramo.pctMin + '% al ' + tramo.pctMax + '%';
+  document.getElementById('art21Min').textContent = fmt(honMin);
+  document.getElementById('art21Max').textContent = fmt(honMax);
+
+  // Info auxiliares
+  const auxMin = monto * 0.05;
+  const auxMax = monto * 0.10;
+  document.getElementById('art21AuxInfo').innerHTML =
+    '<strong>Auxiliares de la Justicia:</strong> mínimo ' + fmt(auxMin) + ' (5%) · máximo ' + fmt(auxMax) + ' (10%)';
+  document.getElementById('art21AuxInfo').style.display = 'block';
+  document.getElementById('art21Result').style.display = 'block';
 }
 
 startFetch();
