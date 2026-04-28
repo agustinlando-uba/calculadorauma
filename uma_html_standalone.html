@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calculadora UMA – Ley 27.423</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1c1a; color: #e8e6e0; }
+    .card { background: #262624; border-color: rgba(255,255,255,0.1); }
+    .result-box { background: #1c1c1a; }
+    .tab { color: #999; }
+    .tab.active { color: #e8e6e0; border-bottom-color: #e8e6e0; }
+    .hist-search { background: #1c1c1a; color: #e8e6e0; border-color: rgba(255,255,255,0.15); }
+    .uma-input { background: transparent; color: #e8e6e0; border-color: rgba(255,255,255,0.3); }
+    .hist-table th { color: #999; border-color: rgba(255,255,255,0.08); }
+    .hist-table td { border-color: rgba(255,255,255,0.06); }
+    .refresh-btn { color: #999; border-color: rgba(255,255,255,0.15); }
+    .refresh-btn:hover { background: rgba(255,255,255,0.06); }
+    .notice { background: #2a2600; border-color: #5a4a00; color: #e0c060; }
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 1.5rem; }
+  .card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.25rem; margin-bottom: 12px; }
+  .section-title { font-size: 12px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .uma-input { font-size: 32px; font-weight: 500; width: 180px; border: none; border-bottom: 2px solid #ccc; background: transparent; color: #1a1a18; padding: 4px 0; outline: none; }
+  .uma-input:focus { border-bottom-color: #333; }
+  .result-box { background: #f5f4f0; border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .result-label { font-size: 13px; color: #666; margin-bottom: 4px; }
+  .result-value { font-size: 32px; font-weight: 500; }
+  .vigencia-tag { font-size: 12px; color: #0c5fa5; background: #e6f1fb; border-radius: 6px; padding: 3px 10px; display: inline-block; margin-top: 6px; }
+  .status-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #888; margin-top: 10px; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #3b6d11; display: inline-block; flex-shrink: 0; }
+  .dot.loading { background: #ba7517; animation: pulse 1s infinite; }
+  .dot.error { background: #a32d2d; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .refresh-btn { font-size: 12px; padding: 3px 10px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 6px; background: none; color: #666; cursor: pointer; }
+  .refresh-btn:hover { background: rgba(0,0,0,0.05); }
+  .tabs { display: flex; border-bottom: 0.5px solid rgba(0,0,0,0.12); margin-bottom: 1.25rem; }
+  .tab { padding: 8px 18px; font-size: 14px; cursor: pointer; border: none; border-bottom: 2px solid transparent; color: #888; background: none; }
+  .tab.active { color: #1a1a18; border-bottom-color: #1a1a18; font-weight: 500; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .hist-search { width: 100%; font-size: 13px; padding: 7px 12px; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 8px; background: #fff; color: #1a1a18; outline: none; margin-bottom: 10px; }
+  .hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .hist-table th { color: #888; font-weight: 500; text-align: left; padding: 6px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.1); white-space: nowrap; }
+  .hist-table td { padding: 7px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.07); }
+  .hist-table tr.vigente td { font-weight: 500; }
+  .vigente-badge { background: #eaf3de; color: #3b6d11; border-radius: 6px; font-size: 11px; padding: 1px 7px; margin-left: 4px; }
+  .notice { background: #fffbe6; border: 0.5px solid #e0c040; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #5a4a00; margin-bottom: 12px; line-height: 1.5; }
+  .notice a { color: #0c5fa5; }
+  .source-badge { font-size: 10px; color: #888; background: rgba(0,0,0,0.06); border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+  .footer { font-size: 11px; color: #aaa; text-align: center; margin-top: 1.5rem; line-height: 1.8; }
+  .footer a { color: #aaa; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Calculadora UMA</h1>
+  <p class="subtitle">Unidad de Medida Arancelaria · Ley 27.423 · PJN</p>
+
+  <div id="noticeBox" class="notice" style="display:none;"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('calc')">Calculadora</button>
+    <button class="tab" onclick="switchTab('hist')">Historial de valores</button>
+  </div>
+
+  <div id="tab-calc" class="panel active">
+    <div class="card">
+      <p class="section-title">Valor vigente de la UMA</p>
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <span id="umaValorVigente" style="font-size:26px;font-weight:500;">cargando...</span>
+        <span id="umaVigenciaTag" class="vigencia-tag" style="display:none;"></span>
+      </div>
+      <div class="status-row">
+        <span id="statusDot" class="dot loading"></span>
+        <span id="statusText">Consultando fuente oficial...</span>
+        <button class="refresh-btn" onclick="startFetch()">↻ Actualizar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Ingresá la cantidad de UMA</p>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input class="uma-input" type="number" id="umaInput" value="1" min="0" step="0.01" oninput="calcular()" />
+        <span style="font-size:18px;color:#888;">UMA</span>
+      </div>
+      <div class="result-box">
+        <div>
+          <div class="result-label">Equivalente en pesos argentinos</div>
+          <div class="result-value" id="resultPesos">—</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="result-label">UMA ingresadas</div>
+          <div style="font-size:20px;font-weight:500;" id="resultUMA">1,00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-hist" class="panel">
+    <input class="hist-search" type="text" id="histSearch" placeholder="Buscar por período, normativa o fecha..." oninput="filtrarHist()" />
+    <table class="hist-table">
+      <thead><tr><th>Normativa</th><th>Fecha res.</th><th>Vigencia</th><th>Monto</th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+
+  <p class="footer">
+    Fuentes: <a href="https://www.consejo.org.ar/herramientas-profesionales/indices-y-tasas/valores-uma" target="_blank">consejo.org.ar</a> · <a href="https://www.cpacf.org.ar/noticia/5201/valores-uma-pjn-ley-27423" target="_blank">cpacf.org.ar</a><br>
+    El valor se actualiza automáticamente al abrir la app.
+  </p>
+</div>
+
+<script>
+const SRC_CONSEJO = 'https://www.consejo.org.ar/herramientas-profesionales/indices-y-tasas/valores-uma';
+const SRC_CPACF   = 'https://www.cpacf.org.ar/noticia/5201/valores-uma-pjn-ley-27423';
+
+const PROXIES = [
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+];
+
+// Historial completo con fechas de resolución tomadas del CPACF
+const FALLBACK_HIST = [
+  { norm:'Res. SGA 538/2026',  fecha:'31/03/2026', periodo:'feb-26', monto:92482, vigente:true },
+  { norm:'Res. SGA 235/2026',  fecha:'05/03/2026', periodo:'ene-26', monto:89875 },
+  { norm:'Res. SGA 36/2026',   fecha:'11/02/2026', periodo:'dic-25', monto:87342 },
+  { norm:'Res. SGA 3160/2025', fecha:'16/12/2025', periodo:'nov-25', monto:84963 },
+  { norm:'Res. SGA 2996/2025', fecha:'28/11/2025', periodo:'oct-25', monto:80664 },
+  { norm:'Res. SGA 2533/2025', fecha:'30/10/2025', periodo:'sep-25', monto:78850 },
+  { norm:'Res. SGA 2226/2025', fecha:'25/09/2025', periodo:'ago-25', monto:77229 },
+  { norm:'Res. SGA 1860/2025', fecha:'22/08/2025', periodo:'jul-25', monto:75789 },
+  { norm:'Res. SGA 1687/2025', fecha:'05/08/2025', periodo:'jun-25', monto:74376 },
+  { norm:'Res. SGA 1432/2025', fecha:'03/07/2025', periodo:'may-25', monto:73204 },
+  { norm:'Res. SGA 1236/2025', fecha:'12/06/2025', periodo:'abr-25', monto:72265 },
+  { norm:'Res. SGA 936/2025',  fecha:'22/05/2025', periodo:'mar-25', monto:70709 },
+  { norm:'Res. SGA 580/2025',  fecha:'25/04/2025', periodo:'feb-25', monto:68985 },
+  { norm:'Res. SGA 237/2025',  fecha:'18/03/2025', periodo:'ene-25', monto:67632 },
+  { norm:'Res. SGA 3495/2024', fecha:'19/12/2024', periodo:'dic-24', monto:66436 },
+  { norm:'Res. SGA 3495/2024', fecha:'19/12/2024', periodo:'nov-24', monto:65133 },
+  { norm:'Res. SGA 3495/2024', fecha:'19/12/2024', periodo:'oct-24', monto:63545 },
+  { norm:'Res. SGA 2910/2024', fecha:'07/11/2024', periodo:'sep-24', monto:61995 },
+  { norm:'Res. SGA 2375/2024', fecha:'12/09/2024', periodo:'ago-24', monto:60779 },
+  { norm:'Res. SGA 2375/2024', fecha:'12/09/2024', periodo:'jul-24', monto:59009 },
+  { norm:'Res. SGA 1772/2024', fecha:'29/07/2024', periodo:'jun-24', monto:57016 },
+  { norm:'Res. SGA 1772/2024', fecha:'29/07/2024', periodo:'may-24', monto:54716 },
+  { norm:'Res. SGA 1497/2024', fecha:'06/06/2024', periodo:'abr-24', monto:52510 },
+  { norm:'Res. SGA 925/2024',  fecha:'30/04/2024', periodo:'mar-24', monto:49075 },
+  { norm:'Res. SGA 626/2024',  fecha:'04/04/2024', periodo:'feb-24', monto:45440 },
+  { norm:'Res. SGA 176/2024',  fecha:'21/02/2024', periodo:'ene-24', monto:40571 },
+  { norm:'Res. SGA 12/2024',   fecha:'01/02/2024', periodo:'dic-23', monto:34382 },
+  { norm:'Res. SGA 3369/2023', fecha:'04/12/2023', periodo:'nov-23', monto:30562 },
+  { norm:'Res. SGA 3369/2023', fecha:'04/12/2023', periodo:'oct-23', monto:27784 },
+  { norm:'Res. SGA 2722/2023', fecha:'12/10/2023', periodo:'sep-23', monto:25373 },
+  { norm:'Res. SGA 2722/2023', fecha:'12/10/2023', periodo:'ago-23', monto:23067 },
+  { norm:'Acordada 29/2023',   fecha:'22/09/2023', periodo:'jul-23', monto:20595 },
+  { norm:'Acordada 19/2023',   fecha:'14/06/2023', periodo:'jun-23', monto:19338 },
+  { norm:'Acordada 19/2023',   fecha:'14/06/2023', periodo:'may-23', monto:17741 },
+  { norm:'Acordada 19/2023',   fecha:'14/06/2023', periodo:'abr-23', monto:16277 },
+  { norm:'Acordada 9/2023',    fecha:'04/04/2023', periodo:'mar-23', monto:14933 },
+  { norm:'Acordada 9/2023',    fecha:'04/04/2023', periodo:'feb-23', monto:14154 },
+  { norm:'Acordada 9/2023',    fecha:'04/04/2023', periodo:'ene-23', monto:13228 },
+  { norm:'Acordada 3/2023',    fecha:'24/02/2023', periodo:'dic-22', monto:12479 },
+  { norm:'Acordada 25/2022',   fecha:'08/09/2022', periodo:'sep-22', monto:10400 },
+  { norm:'Acordada 25/2022',   fecha:'08/09/2022', periodo:'jul-22', monto:9811 },
+  { norm:'Acordada 12/2022',   fecha:'23/05/2022', periodo:'may-22', monto:9001 },
+  { norm:'Acordada 12/2022',   fecha:'23/05/2022', periodo:'abr-22', monto:8183 },
+  { norm:'Acordada 4/2022',    fecha:'11/03/2022', periodo:'ene-22', monto:7439 },
+  { norm:'Acordada 28/2021',   fecha:'09/12/2021', periodo:'nov-21', monto:6468 },
+  { norm:'Acordada 21/2021',   fecha:'01/10/2021', periodo:'sep-21', monto:6160 },
+  { norm:'Acordada 21/2021',   fecha:'01/10/2021', periodo:'jul-21', monto:5476 },
+  { norm:'Acordada 12/2021',   fecha:'13/07/2021', periodo:'jun-21', monto:4978 },
+  { norm:'Acordada 12/2021',   fecha:'13/07/2021', periodo:'mar-21', monto:4567 },
+  { norm:'Acordada 7/2021',    fecha:'20/04/2021', periodo:'dic-20', monto:4152 },
+  { norm:'Acordada 1/2021',    fecha:'23/02/2021', periodo:'nov-20', monto:3862 },
+  { norm:'Acordada 36/2020',   fecha:'30/11/2020', periodo:'oct-20', monto:3511 },
+  { norm:'Acordada 2/2020',    fecha:'03/03/2020', periodo:'dic-19', monto:3192 },
+  { norm:'Acordada 30/2019',   fecha:'21/11/2019', periodo:'nov-19', monto:2902 },
+  { norm:'Acordada 28/2019',   fecha:'29/10/2019', periodo:'sep-19', monto:2638 },
+  { norm:'Acordada 20/2019',   fecha:'16/07/2019', periodo:'jun-19', monto:2398 },
+  { norm:'Acordada 20/2019',   fecha:'16/07/2019', periodo:'may-19', monto:2231 },
+  { norm:'Acordada 8/2019',    fecha:'15/04/2019', periodo:'mar-19', monto:2075 },
+  { norm:'Acordada 3/2019',    fecha:'03/02/2019', periodo:'oct-18', monto:1887 },
+  { norm:'Acordada 27/2018',   fecha:'04/09/2018', periodo:'ago-18', monto:1715 },
+  { norm:'Acordada 27/2018',   fecha:'04/09/2018', periodo:'abr-18', monto:1559 },
+  { norm:'Acordada 27/2018',   fecha:'04/09/2018', periodo:'ene-18', monto:1417 },
+  { norm:'Acordada 27/2018',   fecha:'04/09/2018', periodo:'hasta dic-17', monto:1350 },
+];
+
+let umaVigente = null;
+let historial = [];
+let fuenteActiva = '';
+
+function fmt(n) {
+  return '$ ' + Math.round(n).toLocaleString('es-AR');
+}
+
+function setStatus(state, msg) {
+  document.getElementById('statusDot').className = 'dot' + (state==='ok'?'':state==='loading'?' loading':' error');
+  document.getElementById('statusText').textContent = msg;
+}
+
+function showNotice(msg) {
+  const el = document.getElementById('noticeBox');
+  el.innerHTML = msg;
+  el.style.display = 'block';
+}
+
+async function tryProxy(proxyFn, url) {
+  const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const ct = res.headers.get('content-type') || '';
+  const text = ct.includes('json') ? (await res.json()).contents || '' : await res.text();
+  if (!text || text.length < 500) throw new Error('vacío');
+  return text;
+}
+
+// Parsea la tabla del CPACF (5 columnas: norm, fecha, monto, periodo, vigDesde)
+function parseCPACF(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const data = [];
+  doc.querySelectorAll('table tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length >= 4) {
+      const norm  = cells[0].textContent.trim();
+      const fecha = cells[1].textContent.trim();
+      const montoRaw = cells[2].textContent.replace(/[^\d,.]/g,'').replace(/\./g,'').replace(',','.');
+      const monto = parseFloat(montoRaw);
+      const periodo = cells[3].textContent.trim().toLowerCase()
+        .replace('ene','ene').replace('feb','feb').replace('mar','mar')
+        .replace('abr','abr').replace('may','may').replace('jun','jun')
+        .replace('jul','jul').replace('ago','ago').replace('sep','sep')
+        .replace('oct','oct').replace('nov','nov').replace('dic','dic')
+        .replace(/-(\d{4})$/, (_, y) => '-' + y.slice(2));
+      if (norm && monto > 100 && /\d/.test(fecha)) {
+        data.push({ norm: 'Res./Acordada ' + norm, fecha, periodo, monto });
+      }
+    }
+  });
+  return data;
+}
+
+// Parsea la tabla del Consejo (4 columnas: norm, fecha, monto, periodo, vigDesde)
+function parseConsejo(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const data = [];
+  doc.querySelectorAll('table tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length >= 3) {
+      const norm  = cells[0].textContent.trim();
+      // col 1 = fecha publicación, col 2 = monto, col 3 = periodo
+      const fecha = cells[1] ? cells[1].textContent.trim() : '';
+      const montoRaw = cells[2].textContent.replace(/[^\d,.]/g,'').replace(/\./g,'').replace(',','.');
+      const monto = parseFloat(montoRaw);
+      const periodo = cells[3] ? cells[3].textContent.trim().toLowerCase() : '';
+      if (norm && monto > 100) data.push({ norm, fecha, periodo, monto });
+    }
+  });
+  return data;
+}
+
+async function fetchSource(url, parseFn, label) {
+  for (const proxyFn of PROXIES) {
+    try {
+      const html = await tryProxy(proxyFn, url);
+      const data = parseFn(html);
+      if (data.length > 3) return { data, label };
+    } catch(e) { /* siguiente proxy */ }
+  }
+  return null;
+}
+
+async function startFetch() {
+  setStatus('loading', 'Consultando fuente oficial...');
+  document.getElementById('noticeBox').style.display = 'none';
+
+  // Intentar CPACF primero (tiene fecha de resolución explícita)
+  let result = await fetchSource(SRC_CPACF, parseCPACF, 'cpacf.org.ar');
+
+  // Si falla, intentar Consejo
+  if (!result) {
+    result = await fetchSource(SRC_CONSEJO, parseConsejo, 'consejo.org.ar');
+  }
+
+  if (result) {
+    historial = result.data.map((d, i) => ({ ...d, vigente: i === 0 }));
+    umaVigente = historial[0];
+    fuenteActiva = result.label;
+    renderVigente(umaVigente);
+    renderHist(historial);
+    setStatus('ok', 'Actualizado desde ' + fuenteActiva + ' · ' + new Date().toLocaleTimeString('es-AR'));
+  } else {
+    useFallback();
+  }
+}
+
+function useFallback() {
+  historial = FALLBACK_HIST;
+  umaVigente = FALLBACK_HIST[0];
+  fuenteActiva = 'respaldo local';
+  renderVigente(umaVigente);
+  renderHist(historial);
+  setStatus('error', 'Sin conexión · Usando último valor conocido');
+  showNotice(
+    '⚠️ No se pudo conectar a ninguna fuente. Se muestra el último valor conocido ' +
+    '(<strong>$92.482 · feb-26</strong>). Verificá en ' +
+    '<a href="' + SRC_CONSEJO + '" target="_blank">consejo.org.ar</a> o ' +
+    '<a href="' + SRC_CPACF + '" target="_blank">cpacf.org.ar</a> ' +
+    'y presioná <strong>↻ Actualizar</strong>.'
+  );
+}
+
+function renderVigente(v) {
+  document.getElementById('umaValorVigente').textContent = fmt(v.monto);
+  const tag = document.getElementById('umaVigenciaTag');
+  tag.textContent = v.periodo + (v.fecha ? ' · ' + v.fecha : '') + (v.norm ? ' · ' + v.norm : '');
+  tag.style.display = 'inline-block';
+  calcular();
+}
+
+function calcular() {
+  if (!umaVigente) return;
+  const v = parseFloat(document.getElementById('umaInput').value) || 0;
+  document.getElementById('resultPesos').textContent = fmt(v * umaVigente.monto);
+  document.getElementById('resultUMA').textContent = v.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function renderHist(data) {
+  const tbody = document.getElementById('histBody');
+  tbody.innerHTML = '';
+  data.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.vigente) tr.className = 'vigente';
+    const fuenteBadge = fuenteActiva && fuenteActiva !== 'respaldo local'
+      ? `<span class="source-badge">${fuenteActiva}</span>` : '';
+    tr.innerHTML = `
+      <td>${r.norm}${r.vigente ? fuenteBadge : ''}</td>
+      <td>${r.fecha || '—'}</td>
+      <td>${r.periodo}${r.vigente ? ' <span class="vigente-badge">vigente</span>' : ''}</td>
+      <td>${fmt(r.monto)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function filtrarHist() {
+  const q = document.getElementById('histSearch').value.toLowerCase();
+  renderHist(historial.filter(r =>
+    r.norm.toLowerCase().includes(q) ||
+    r.periodo.toLowerCase().includes(q) ||
+    (r.fecha || '').includes(q)
+  ));
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['calc','hist'][i]===id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+startFetch();
+</script>
+</body>
+</html>
